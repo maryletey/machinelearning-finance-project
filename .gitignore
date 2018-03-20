@@ -99,3 +99,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Have git ignore all jupyter notebook checkpoints
+*checkpoints*
