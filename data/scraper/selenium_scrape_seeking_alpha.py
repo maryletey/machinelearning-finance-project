@@ -15,17 +15,43 @@ def clean_str(s):
 def get_xpath(xp, tree):
     return clean_xpath(tree.xpath(xp))
 
-def parse_page(url, time_delay=20):
-    driver = None
+def parse_seeking_alpha(driver):
     try:
-        driver = webdriver.Firefox()
-        driver.get(url)
         title = driver.find_element_by_xpath("//h1[@itemprop='headline']")
         title = clean_str(title.text)
         date = driver.find_element_by_xpath("//time[@itemprop='datePublished']")
         date = clean_str(date.text)
         body = driver.find_element_by_xpath("//div[@itemprop='articleBody']")
         body = clean_str(body.text)
+        return (title, date, body)
+    except:
+        return None
+        
+def parse_wsj(driver):
+    try:
+        title = driver.find_element_by_xpath("//h1[@itemprop='headline']")
+        title = clean_str(title.text)
+        date = driver.find_element_by_xpath("//time[@class='timestamp']")
+        date = clean_str(date.text)
+        try:
+            body = driver.find_element_by_xpath("//div[@itemprop='articleBody']")
+        except:
+            body = driver.find_element_by_xpath("//div[@class='wsj-snippet-body']")
+            
+        body = clean_str(body.text)
+        return (title, date, body)
+    except:
+        return None
+
+def parse_page(url, time_delay=20):
+    driver = None
+    try:
+        driver = webdriver.Firefox()
+        driver.get(url)
+        if "seekingalpha" in url:
+            title, date, body =  parse_seeking_alpha(driver)
+        elif "wsj.com" in url:
+            title, date, body = parse_wsj(driver)
 
         driver.close()
         time.sleep(20)                
