@@ -27,6 +27,18 @@ def parse_seeking_alpha(driver):
     except:
         return None
         
+def parse_fool(driver):
+    try:
+        title = driver.find_element_by_xpath("//header/h1")
+        title = clean_str(title.text)
+        date = driver.find_element_by_xpath("//div[@class='publication-date']")
+        date = clean_str(date.text)
+        body = driver.find_element_by_xpath("//span[@class='article-content']")
+        body = clean_str(body.text)
+        return (title, date, body)
+    except:
+        return None
+
 def parse_wsj(driver):
     try:
         title = driver.find_element_by_xpath("//h1[@itemprop='headline']")
@@ -51,6 +63,8 @@ def parse_page(url, time_delay=20):
         if "seekingalpha" in url:
             title, date, body =  parse_seeking_alpha(driver)
         elif "wsj.com" in url:
+            title, date, body = parse_wsj(driver)
+        elif "fool.com" in url:
             title, date, body = parse_wsj(driver)
 
         driver.close()
