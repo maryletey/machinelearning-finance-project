@@ -65,7 +65,7 @@ def parse_page(url, time_delay=20):
         elif "wsj.com" in url:
             title, date, body = parse_wsj(driver)
         elif "fool.com" in url:
-            title, date, body = parse_wsj(driver)
+            title, date, body = parse_fool(driver)
 
         driver.close()
         time.sleep(20)                
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     stateful_urls = map(url_to_initial_state, urls)
     for i in range(3):
-        delay = 20 * (i+1)
+        delay = 7 * (i+1)
         stateful_urls = map(lambda t: attempt_with_state(t, delay), stateful_urls)
 
     with sys.stdout as csvfile:
