@@ -68,12 +68,12 @@ def parse_page(url, time_delay=20):
             title, date, body = parse_fool(driver)
 
         driver.close()
-        time.sleep(20)                
+        time.sleep(time_delay)                
         return (title, date, body)
     except:
         if driver:
             driver.close()
-            time.sleep(20)                
+            time.sleep(time_delay)                
         return None
 
 def read_all_links(fn, col=0):
