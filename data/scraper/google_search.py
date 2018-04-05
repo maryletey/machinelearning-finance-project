@@ -8,7 +8,7 @@ class GoogleDriver(webdriver.Firefox):
     def __init__(self, query, max_page = 3):
         webdriver.Firefox.__init__(self)
         self.get('https://www.google.com')
-        self.max_page = 3
+        self.max_page = max_page
         self.cur_page = 0
         self.query = query
         self.__search_for(query)
