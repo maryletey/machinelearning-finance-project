@@ -5,7 +5,7 @@ from __future__ import print_function
 import argparse
 import tensorflow as tf
 
-import tf_stock_model
+import stock_data
 
 
 parser = argparse.ArgumentParser()
@@ -16,11 +16,26 @@ parser.add_argument('--price_norm_factor', default=1000., type=float,
                     help='price normalization factor')
 
 
+def from_dataset(ds):
+    return lambda: ds.make_one_shot_iterator().get_next()
+
 def main(argv):
     args = parser.parse_args(argv[1:])
 
     # Fetch the data
-    (train_x, train_y), (test_x, test_y) = tf_stock_model.load_data()
+    (train_x, train_y), (test_x, test_y) = stock_data.load_data()
+
+    # Build the training dataset.
+    train = (
+      stock_data.make_dataset(train_x, train_y)
+      # Shuffling with a buffer larger than the data set ensures
+      # that the examples are well mixed.
+      .shuffle(1000).batch(args.batch_size)
+      # Repeat forever
+      .repeat())
+
+    # Build the validation dataset.
+    test = stock_data.make_dataset(test_x, test_y).batch(args.batch_size)
 
     # Feature columns describe how to use the input.
     my_feature_columns = []
@@ -29,19 +44,22 @@ def main(argv):
 
     # Build a DNNRegressor, with 2x20-unit hidden layers, with the feature columns
     # defined above as input.
-    model = tf.estimator.DNNRegressor(
-      hidden_units=[20, 20], feature_columns=my_feature_columns)
+#    model = tf.estimator.DNNRegressor(
+#      hidden_units=[20, 20], feature_columns=my_feature_columns)
 
+    model = tf.estimator.LinearRegressor(feature_columns=my_feature_columns)
 
     # Train the Model.
-    model.train(input_fn=lambda:tf_stock_model.train_input_fn(train_x, train_y,args.batch_size),
-                steps=args.train_steps)
-
-    # Test the Model
-    #predictions = model.predict(input_fn=lambda:tf_stock_model.eval_input_fn(test_x, test_y,args.batch_size))    
+    model.train(input_fn=from_dataset(train),steps=args.train_steps)
 
     # Evaluate the model.
-    eval_result = model.evaluate(input_fn=lambda:tf_stock_model.eval_input_fn(test_x, test_y,args.batch_size))
+    eval_result = model.evaluate(input_fn=from_dataset(test))
+
+    #test_features only
+    test_features = stock_data.make_dataset(test_x).batch(args.batch_size)
+    # Test the Model
+    predictions = model.predict(input_fn=from_dataset(test_features))    
+
 
 
     # The evaluation returns a Python dictionary. The "average_loss" key holds the
@@ -53,7 +71,11 @@ def main(argv):
     print("\nRMS error for the test set: ${:.0f}"
         .format(args.price_norm_factor * average_loss**0.5))
 
-    print (predictions)
+    #Print predicted vs expected
+    template = ('\nPrediction is "{}", expected "{}"')    
+    for pred_dict, expect in zip(predictions, test_y):
+        print(template.format(pred_dict['predictions'][0],expect))
+        
     print()
     
 if __name__ == '__main__':
