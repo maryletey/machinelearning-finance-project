@@ -9,7 +9,6 @@ from data_model import StockDataSet
 from model_rnn import LstmRNN
 
 flags = tf.app.flags
-flags.DEFINE_integer("stock_count", 100, "Stock count [100]")
 flags.DEFINE_integer("input_size", 1, "Input size [1]")
 flags.DEFINE_integer("output_size", 1, "Output size [1]")
 flags.DEFINE_integer("num_steps", 30, "Num of steps [30]")
@@ -22,11 +21,9 @@ flags.DEFINE_float("learning_rate_decay", 0.99, "Decay rate of learning rate. [0
 flags.DEFINE_float("test_ratio", 0.05, "Test Ratio.[0.05]")
 flags.DEFINE_integer("init_epoch", 5, "Num. of epoches considered as early stage. [5]")
 flags.DEFINE_integer("max_epoch", 50, "Total training epoches. [50]")
-flags.DEFINE_integer("embed_size", None, "If provided, use embedding vector of this size. [None]")
 flags.DEFINE_string("stock_symbol", None, "Target stock symbol [None]")
 flags.DEFINE_integer("sample_size", 4, "Number of stocks to plot during training. [4]")
 flags.DEFINE_boolean("train", False, "True for training, False for testing [False]")
-flags.DEFINE_boolean("close_price_only", True, "Selecting close price as only feature [True]")
 
 FLAGS = flags.FLAGS
 
@@ -86,13 +83,11 @@ def main(_):
     with tf.Session(config=run_config) as sess:
         rnn_model = LstmRNN(
             sess,
-            FLAGS.stock_count,
             lstm_size=FLAGS.lstm_size,
             num_layers=FLAGS.num_layers,
             num_steps=FLAGS.num_steps,
             input_size=FLAGS.input_size,
             output_size=FLAGS.output_size,
-            embed_size=FLAGS.embed_size,
         )
 
         show_all_variables()
@@ -100,10 +95,12 @@ def main(_):
         stock_data_list = load_sp500(
             FLAGS.input_size,
             FLAGS.num_steps,
-            k=FLAGS.stock_count,
             target_symbol=FLAGS.stock_symbol,
             test_ratio=FLAGS.test_ratio,
         )
+
+       # gtrends = str(FLAGS.stock_symbol) +"_gtrends"
+       # print "stock symbol:",gtrends
 
         if FLAGS.train:
             rnn_model.train(stock_data_list, FLAGS)

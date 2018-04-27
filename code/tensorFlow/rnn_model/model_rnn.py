@@ -14,13 +14,12 @@ from tensorflow.contrib.tensorboard.plugins import projector
 
 
 class LstmRNN(object):
-    def __init__(self, sess, stock_count,
+    def __init__(self, sess,
                  lstm_size=128,
                  num_layers=1,
                  num_steps=30,
                  input_size=1,
                  output_size=1,
-                 embed_size=None,
                  logs_dir="logs",
                  plots_dir="images"):
         """
@@ -28,18 +27,15 @@ class LstmRNN(object):
 
         Args:
             sess:
-            stock_count (int): num. of stocks we are going to train with.
             lstm_size (int)
             num_layers (int): num. of LSTM cell layers.
             num_steps (int)
             input_size (int)
             output_size (int)
             keep_prob (int): (1.0 - dropout rate.) for a LSTM cell.
-            embed_size (int): length of embedding vector, only used when stock_count > 1.
             checkpoint_dir (str)
         """
         self.sess = sess
-        self.stock_count = stock_count
 
         self.lstm_size = lstm_size
         self.num_layers = num_layers
@@ -47,8 +43,6 @@ class LstmRNN(object):
         self.input_size = input_size
         self.output_size = output_size
 
-        self.use_embed = (embed_size is not None) and (embed_size > 0)
-        self.embed_size = embed_size or -1
 
         self.logs_dir = logs_dir
         self.plots_dir = plots_dir
@@ -64,12 +58,16 @@ class LstmRNN(object):
         - input: training data X
         - targets: training label y
         """
+
+        # Stock symbols are mapped to integers.
+        self.symbols = tf.placeholder(tf.int32, [None, 1], name='stock_labels')
+        
         # inputs.shape = (number of examples, number of input, dimension of each input).
         self.learning_rate = tf.placeholder(tf.float32, None, name="learning_rate")
         self.keep_prob = tf.placeholder(tf.float32, None, name="keep_prob")
 
         # Stock symbols are mapped to integers.
-        self.symbols = tf.placeholder(tf.int32, [None, 1], name='stock_labels')
+        # self.symbols = tf.placeholder(tf.int32, [None, 1], name='stock_labels')
 
         self.inputs = tf.placeholder(tf.float32, [None, self.num_steps, self.input_size], name="inputs")
         #fixing output size
@@ -85,23 +83,9 @@ class LstmRNN(object):
             state_is_tuple=True
         ) if self.num_layers > 1 else _create_one_cell()
 
-        if self.embed_size > 0 and self.stock_count > 1:
-            self.embed_matrix = tf.Variable(
-                tf.random_uniform([self.stock_count, self.embed_size], -1.0, 1.0),
-                name="embed_matrix"
-            )
-            
-            # stock_label_embeds.shape = (batch_size, embedding_size)
-            stacked_symbols = tf.tile(self.symbols, [1, self.num_steps], name='stacked_stock_labels')
-            stacked_embeds = tf.nn.embedding_lookup(self.embed_matrix, stacked_symbols)
 
-            # After concat, inputs.shape = (batch_size, num_steps, input_size + embed_size)
-            self.inputs_with_embed = tf.concat([self.inputs, stacked_embeds], axis=2, name="inputs_with_embed")
-            self.embed_matrix_summ = tf.summary.histogram("embed_matrix", self.embed_matrix)
-
-        else:
-            self.inputs_with_embed = tf.identity(self.inputs)
-            self.embed_matrix_summ = None
+        self.inputs_with_embed = tf.identity(self.inputs)
+        self.embed_matrix_summ = None
 
         print "inputs.shape:", self.inputs.shape
         print "inputs_with_embed.shape:", self.inputs_with_embed.shape
@@ -112,12 +96,13 @@ class LstmRNN(object):
         # Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size)
         # After transpose, val.get_shape() = (num_steps, batch_size, lstm_size)
         val = tf.transpose(val, [1, 0, 2])
-
-
         last = tf.gather(val, int(val.get_shape()[0]) - 1, name="lstm_state_output")
+
         #Define weight and bias between the hiddlen layer and output 
         ws = tf.Variable(tf.truncated_normal([self.lstm_size, self.output_size]), name="w")
         bias = tf.Variable(tf.constant(0.1, shape=[self.output_size]), name="b")
+
+        #Predicted Value
         self.pred = tf.matmul(last, ws) + bias
 
         #histogram updates
@@ -154,23 +139,6 @@ class LstmRNN(object):
         # Set up the logs folder
         self.writer = tf.summary.FileWriter(os.path.join("./logs", self.model_name))
         self.writer.add_graph(self.sess.graph)
-
-        if self.use_embed:
-            # Set up embedding visualization
-            # Format: tensorflow/tensorboard/plugins/projector/projector_config.proto
-            projector_config = projector.ProjectorConfig()
-
-            # You can add multiple embeddings. Here we add only one.
-            added_embed = projector_config.embeddings.add()
-            added_embed.tensor_name = self.embed_matrix.name
-            # Link this tensor to its metadata file (e.g. labels).
-            shutil.copyfile(os.path.join(self.logs_dir, "metadata.tsv"),
-                            os.path.join(self.model_logs_dir, "metadata.tsv"))
-            added_embed.metadata_path = "metadata.tsv"
-
-            # The next line writes a projector_config.pbtxt in the LOG_DIR. TensorBoard will
-            # read this file during startup.
-            projector.visualize_embeddings(self.writer, projector_config)
 
         tf.global_variables_initializer().run()
 
@@ -269,10 +237,9 @@ class LstmRNN(object):
         x_axis = np.linspace(0,len(final_pred)-1,len(final_pred))
         plot1 = plt.plot(x_axis,final_pred,'r',label = 'Predicted')
         plot2 = plt.plot(x_axis,merged_test_y,'g',label = 'Actual')
-        # plot3 = pl.plot(x_axis,err_arr,'k',label = 'Error')
         plt.xlabel('time(days)')
         plt.ylabel('price')
-        plt.title('Predicted vs Actual Stock Price')
+        plt.title('Predicted vs Actual ' + str(config.stock_symbol) + ' Stock Price' )
         legend = plt.legend(loc='upper left', shadow=True)     
         plt.show()   
         
@@ -285,9 +252,6 @@ class LstmRNN(object):
     def model_name(self):
         name = "stock_rnn_lstm%d_step%d_input%d" % (
             self.lstm_size, self.num_steps, self.input_size)
-
-        if self.embed_size > 0:
-            name += "_embed%d" % self.embed_size
 
         return name
 

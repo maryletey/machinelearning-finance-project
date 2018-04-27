@@ -21,18 +21,23 @@ class StockDataSet(object):
         self.output_size = output_size
         self.num_steps = num_steps
         self.test_ratio = test_ratio
-        self.close_price_only = close_price_only
         self.normalized = normalized
 
         # Read csv file
-        raw_df = pd.read_csv(os.path.join("../../../data/datafiles/numerical-initial", "%s.csv" % stock_sym))
+       # raw_df = pd.read_csv(os.path.join("../../../data/datafiles/numerical-initial", "%s.csv" % stock_sym))
+        raw_df = pd.read_csv("../../../data/data-cleanup/combined_data_aniq.csv")        
 
-        # Merge into one sequence
-        if close_price_only:
-            self.raw_seq = raw_df['Close'].tolist()
-        else:
-            self.raw_seq_X = [price for tup in raw_df[['Open', 'High', 'Low', 'Close']].values for price in tup]
-            self.raw_seq_y = [price for tup in raw_df[['Close']].values for price in tup]
+        #self.raw_seq_X = [price for tup in raw_df[['Open', 'High', 'Low', 'Close']].values for price in tup]
+        # self.raw_seq_y = [price for tup in raw_df[['Close']].values for price in tup]
+        # self.raw_seq_X = [price for tup in raw_df[['hp_gtrends', 'hp_Volume', 'hp_Last Price']].values for price in tup]
+        gtrends = str(stock_sym) + "_gtrends"
+        last_price = str(stock_sym) + "_Last Price"
+        self.raw_seq_X = [price for tup in raw_df[[last_price]].values for price in tup]            
+        self.raw_seq_y = [price for tup in raw_df[[last_price]].values for price in tup]
+
+        for i in range (0,len(self.raw_seq_X)):
+            self.raw_seq_X[i] =self.raw_seq_X[i]/100
+            self.raw_seq_y[i] =self.raw_seq_y[i]/100                
 
         self.raw_seq_X = np.array(self.raw_seq_X)
         self.raw_seq_y = np.array(self.raw_seq_y)        
