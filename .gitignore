@@ -104,3 +104,6 @@ ENV/
 *checkpoints*
 data/scraper/seeking_alpha_page_data.csv
 *.swp
+
+# Don’t commit nasty autosave powerpoint files
+*~$*.pptx
