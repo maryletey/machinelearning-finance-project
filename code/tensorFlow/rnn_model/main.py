@@ -24,7 +24,8 @@ flags.DEFINE_integer("max_epoch", 50, "Total training epoches. [50]")
 flags.DEFINE_string("stock_symbol", None, "Target stock symbol [None]")
 flags.DEFINE_integer("sample_size", 4, "Number of stocks to plot during training. [4]")
 flags.DEFINE_boolean("train", False, "True for training, False for testing [False]")
-
+flags.DEFINE_boolean("regularize", True, "Enable data regularization, False by default [False]")
+flags.DEFINE_boolean("normalized", True, "Enable data regularization, False by default [False]")
 FLAGS = flags.FLAGS
 
 pp = pprint.PrettyPrinter()
@@ -38,14 +39,15 @@ def show_all_variables():
     slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
 
-def load_sp500(input_size, num_steps, k=None, target_symbol=None, test_ratio=0.05):
+def load_sp500(input_size, num_steps, k=None, target_symbol=None, test_ratio=0.05, normalized = True):
     if target_symbol is not None:
         return [
             StockDataSet(
                 target_symbol,
                 input_size=input_size,
                 num_steps=num_steps,
-                test_ratio=test_ratio)
+                test_ratio=test_ratio,
+                normalized= normalized)
         ]
 
     # Load metadata of s & p 500 stocks
@@ -88,6 +90,7 @@ def main(_):
             num_steps=FLAGS.num_steps,
             input_size=FLAGS.input_size,
             output_size=FLAGS.output_size,
+            regularize = FLAGS.regularize,
         )
 
         show_all_variables()
@@ -97,11 +100,10 @@ def main(_):
             FLAGS.num_steps,
             target_symbol=FLAGS.stock_symbol,
             test_ratio=FLAGS.test_ratio,
+            normalized=FLAGS.normalized
         )
 
-       # gtrends = str(FLAGS.stock_symbol) +"_gtrends"
-       # print "stock symbol:",gtrends
-
+        
         if FLAGS.train:
             rnn_model.train(stock_data_list, FLAGS)
         else:

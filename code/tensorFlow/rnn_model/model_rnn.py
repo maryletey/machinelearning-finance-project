@@ -20,6 +20,7 @@ class LstmRNN(object):
                  num_steps=30,
                  input_size=1,
                  output_size=1,
+                 regularize=False,
                  logs_dir="logs",
                  plots_dir="images"):
         """
@@ -42,6 +43,7 @@ class LstmRNN(object):
         self.num_steps = num_steps
         self.input_size = input_size
         self.output_size = output_size
+        self.regularize = regularize
 
 
         self.logs_dir = logs_dir
@@ -112,14 +114,23 @@ class LstmRNN(object):
         self.pred_summ = tf.summary.histogram("pred", self.pred)
 
         # self.loss = -tf.reduce_sum(targets * tf.log(tf.clip_by_value(prediction, 1e-10, 1.0)))
-        # Cost Function
+        # Original Cost/Loss Function
         self.loss = tf.reduce_mean(tf.square(self.pred - self.targets), name="loss_mse_train")
+
+        #if self.regularize:  
+            # Loss function using L2 Regularization
+        #    print "will be regularizing"
+        self.regularizer = tf.nn.l2_loss(ws)
+           # self.loss = tf.reduce_mean(self.loss + config.init_learning_rate * self.regularizer)
+        self.loss = tf.reduce_mean(self.loss + self.learning_rate * self.regularizer)            
+
         # Optimizer
         self.optim = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss, name="rmsprop_optim")
 
         # Separated from train loss.
         self.loss_test = tf.reduce_mean(tf.square(self.pred - self.targets), name="loss_mse_test")
 
+        #Histogram Updates
         self.loss_sum = tf.summary.scalar("loss_mse_train", self.loss)
         self.loss_test_sum = tf.summary.scalar("loss_mse_test", self.loss_test)
         self.learning_rate_sum = tf.summary.scalar("learning_rate", self.learning_rate)
@@ -227,6 +238,12 @@ class LstmRNN(object):
         
         final_pred, final_loss = self.sess.run([self.pred, self.loss], test_data_feed)
 
+        #Denormalize
+        if config.normalized:
+            for i in range (0,len(final_pred)):
+                final_pred[i] = (final_pred[i]*dataset_list[0].std_price) + dataset_list[0].mean_price
+                merged_test_y[i] = (merged_test_y[i]*dataset_list[0].std_price) + dataset_list[0].mean_price
+            
         #Print predicted vs expected
         template = ('\nPrediction is "{}", expected "{}"')    
         for pred, expect in zip(final_pred, merged_test_y):
